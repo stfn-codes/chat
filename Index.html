@@ -1,1 +1,179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Chat (Senza Chiavi)</title>
+    <!-- Includiamo la libreria per connetterci al server pubblico -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.3.5/mqtt.min.js"></script>
 
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background: #1e1e2e; color: #cdd6f4; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        /* Schermata Login */
+        #login-screen { background: #313244; padding: 30px; border-radius: 10px; text-align: center; }
+        input, button { padding: 10px; margin: 10px 0; border-radius: 5px; border: none; width: 100%; }
+        input { background: #181825; color: white; }
+        button { background: #89b4fa; color: #11111b; font-weight: bold; cursor: pointer; }
+        
+        /* Schermata Chat */
+        #chat-screen { display: none; width: 90vw; max-width: 800px; height: 80vh; background: #313244; border-radius: 10px; display: none; flex-direction: column; }
+        .header { padding: 15px; background: #181825; text-align: center; font-weight: bold; display: flex; justify-content: space-between;}
+        .mode-btn { background: #45475a; color: white; padding: 5px 10px; width: auto; margin: 0; }
+        .mode-btn.active { background: #a6e3a1; color: black; }
+        
+        /* Area Messaggi */
+        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 70%; padding: 10px; border-radius: 8px; }
+        .msg.me { background: #89b4fa; color: #11111b; align-self: flex-end; }
+        .msg.other { background: #45475a; align-self: flex-start; }
+        .msg-sender { font-size: 0.8em; font-weight: bold; margin-bottom: 3px; display: block; opacity: 0.8; }
+        
+        /* Area Input */
+        .input-area { display: flex; padding: 10px; background: #181825; gap: 10px; }
+        .input-area input { margin: 0; flex: 1; }
+        .input-area button { width: auto; padding: 10px 20px; margin: 0; }
+        
+        #private-tools { display: none; padding: 10px; background: #45475a; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN -->
+    <div id="login-screen">
+        <h2>Entra nella Chat</h2>
+        <input type="text" id="username" placeholder="Il tuo username..." autocomplete="off">
+        <button onclick="connetti()">Entra</button>
+        <p id="status" style="margin-top: 10px; font-size: 12px; color: #f38ba8;"></p>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chat-screen">
+        <div class="header">
+            <span id="chat-title">🌍 Globale</span>
+            <div>
+                <button class="mode-btn active" id="btn-global" onclick="setMode('global')">Globale</button>
+                <button class="mode-btn" id="btn-private" onclick="setMode('private')">Privata</button>
+            </div>
+        </div>
+
+        <div id="private-tools">
+            <input type="text" id="target-user" placeholder="Con chi vuoi parlare in privato?">
+        </div>
+
+        <div id="messages"></div>
+
+        <div class="input-area">
+            <input type="text" id="message-input" placeholder="Scrivi un messaggio..." onkeypress="if(event.key === 'Enter') invia()">
+            <button onclick="invia()">Invia</button>
+        </div>
+    </div>
+
+    <script>
+        // PREFISSO UNIVOCO: Cambia questa stringa per creare la "tua" stanza isolata dal resto del mondo
+        const APP_PREFIX = "MIA_CHAT_SEGRETA_123/"; 
+        
+        let client = null;
+        let mioUsername = "";
+        let modalita = "global"; // 'global' o 'private'
+
+        function connetti() {
+            mioUsername = document.getElementById("username").value.trim();
+            if (!mioUsername) return alert("Inserisci un username!");
+
+            document.getElementById("status").innerText = "Connessione in corso...";
+
+            // Ci connettiamo a un server pubblico gratuito (HiveMQ)
+            client = mqtt.connect("wss://broker.hivemq.com:8000/mqtt");
+
+            client.on("connect", () => {
+                // Quando siamo connessi, ci iscriviamo a due canali:
+                // 1. Il canale globale
+                client.subscribe(APP_PREFIX + "globale");
+                // 2. Il nostro canale privato personale (per ricevere messaggi diretti a noi)
+                client.subscribe(APP_PREFIX + "privato/" + mioUsername);
+
+                // Mostra la chat
+                document.getElementById("login-screen").style.display = "none";
+                document.getElementById("chat-screen").style.display = "flex";
+            });
+
+            // Cosa succede quando riceviamo un messaggio
+            client.on("message", (topic, payload) => {
+                const messaggio = JSON.parse(payload.toString());
+                
+                // Mostra il messaggio solo se stiamo guardando la chat giusta
+                const isGlobalTopic = topic.endsWith("globale");
+                const isMyPrivateTopic = topic.endsWith("privato/" + mioUsername);
+
+                if (modalita === "global" && isGlobalTopic) {
+                    stampaMessaggio(messaggio.mittente, messaggio.testo);
+                } else if (modalita === "private") {
+                    // Se siamo in chat privata, mostriamo i messaggi ricevuti dal nostro target
+                    const target = document.getElementById("target-user").value.trim();
+                    if (isMyPrivateTopic && messaggio.mittente === target) {
+                        stampaMessaggio(messaggio.mittente, messaggio.testo);
+                    }
+                }
+            });
+        }
+
+        function setMode(mode) {
+            modalita = mode;
+            document.getElementById("messages").innerHTML = ""; // Pulisce la chat
+            
+            if (mode === 'global') {
+                document.getElementById("chat-title").innerText = "🌍 Globale";
+                document.getElementById("btn-global").classList.add("active");
+                document.getElementById("btn-private").classList.remove("active");
+                document.getElementById("private-tools").style.display = "none";
+            } else {
+                document.getElementById("chat-title").innerText = "💬 Privata";
+                document.getElementById("btn-global").classList.remove("active");
+                document.getElementById("btn-private").classList.add("active");
+                document.getElementById("private-tools").style.display = "flex";
+            }
+        }
+
+        function invia() {
+            const testo = document.getElementById("message-input").value.trim();
+            if (!testo || !client) return;
+
+            const pacchetto = {
+                mittente: mioUsername,
+                testo: testo
+            };
+
+            if (modalita === "global") {
+                // Invia al canale globale
+                client.publish(APP_PREFIX + "globale", JSON.stringify(pacchetto));
+                stampaMessaggio(mioUsername, testo); // Mostralo a me stesso
+            } else {
+                const target = document.getElementById("target-user").value.trim();
+                if (!target) return alert("Inserisci il nome di chi vuoi contattare in alto!");
+                
+                // Invia al canale privato del destinatario
+                client.publish(APP_PREFIX + "privato/" + target, JSON.stringify(pacchetto));
+                stampaMessaggio(mioUsername, testo); // Mostralo a me stesso
+            }
+
+            document.getElementById("message-input").value = "";
+        }
+
+        function stampaMessaggio(mittente, testo) {
+            const box = document.getElementById("messages");
+            const div = document.createElement("div");
+            
+            const sonoIo = (mittente === mioUsername);
+            div.className = "msg " + (sonoIo ? "me" : "other");
+            
+            div.innerHTML = `<span class="msg-sender">${sonoIo ? 'Tu' : mittente}</span>${testo}`;
+            box.appendChild(div);
+            
+            // Scrolla in basso
+            box.scrollTop = box.scrollHeight;
+        }
+    </script>
+</body>
+</html>
