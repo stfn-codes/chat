@@ -3,177 +3,279 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Chat (Senza Chiavi)</title>
-    <!-- Includiamo la libreria per connetterci al server pubblico -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.3.5/mqtt.min.js"></script>
-
+    <title>Local Web Chat</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { background: #1e1e2e; color: #cdd6f4; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        
-        /* Schermata Login */
-        #login-screen { background: #313244; padding: 30px; border-radius: 10px; text-align: center; }
-        input, button { padding: 10px; margin: 10px 0; border-radius: 5px; border: none; width: 100%; }
-        input { background: #181825; color: white; }
-        button { background: #89b4fa; color: #11111b; font-weight: bold; cursor: pointer; }
-        
-        /* Schermata Chat */
-        #chat-screen { display: none; width: 90vw; max-width: 800px; height: 80vh; background: #313244; border-radius: 10px; display: none; flex-direction: column; }
-        .header { padding: 15px; background: #181825; text-align: center; font-weight: bold; display: flex; justify-content: space-between;}
-        .mode-btn { background: #45475a; color: white; padding: 5px 10px; width: auto; margin: 0; }
-        .mode-btn.active { background: #a6e3a1; color: black; }
-        
-        /* Area Messaggi */
-        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { max-width: 70%; padding: 10px; border-radius: 8px; }
-        .msg.me { background: #89b4fa; color: #11111b; align-self: flex-end; }
-        .msg.other { background: #45475a; align-self: flex-start; }
-        .msg-sender { font-size: 0.8em; font-weight: bold; margin-bottom: 3px; display: block; opacity: 0.8; }
-        
-        /* Area Input */
-        .input-area { display: flex; padding: 10px; background: #181825; gap: 10px; }
-        .input-area input { margin: 0; flex: 1; }
-        .input-area button { width: auto; padding: 10px 20px; margin: 0; }
-        
-        #private-tools { display: none; padding: 10px; background: #45475a; gap: 10px; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121214;
+            color: #e1e1e6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #chat-container {
+            width: 100%;
+            max-width: 450px;
+            height: 85vh;
+            background: #1c1c1f;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Schermata di Login */
+        #login-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        #login-screen h2 {
+            margin-bottom: 1.5rem;
+            color: #4ea8de;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            background: #29292e;
+            border: 2px solid #323238;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #4ea8de;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #4ea8de;
+            border: none;
+            border-radius: 6px;
+            color: #121214;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #5fa8de;
+        }
+
+        /* Schermata Chat principale */
+        #chat-screen {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            height: 100%;
+        }
+
+        #chat-header {
+            background: #29292e;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-bottom: 1px solid #323238;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #user-display {
+            color: #4ea8de;
+        }
+
+        #messages-area {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Stili dei Messaggi */
+        .message {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            line-height: 1.4;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message .username {
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 3px;
+            display: block;
+        }
+
+        .message.sent {
+            background: #0077b6;
+            color: #fff;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message.sent .username {
+            color: #90e0ef;
+        }
+
+        .message.received {
+            background: #29292e;
+            color: #e1e1e6;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .message.received .username {
+            color: #4ea8de;
+        }
+
+        #input-area {
+            padding: 15px;
+            background: #29292e;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #323238;
+        }
+
+        #message-input {
+            margin-bottom: 0;
+            flex: 1;
+        }
+
+        #send-btn {
+            width: auto;
+            padding: 0 20px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- LOGIN -->
-    <div id="login-screen">
-        <h2>Entra nella Chat</h2>
-        <input type="text" id="username" placeholder="Il tuo username..." autocomplete="off">
-        <button onclick="connetti()">Entra</button>
-        <p id="status" style="margin-top: 10px; font-size: 12px; color: #f38ba8;"></p>
-    </div>
+    <div id="chat-container">
+        <!-- Schermata di Accesso -->
+        <div id="login-screen">
+            <h2>Scegli un nome utente</h2>
+            <input type="text" id="username-input" placeholder="Inserisci il tuo nome..." autocomplete="off">
+            <button id="login-btn">Entra nella Chat</button>
+        </div>
 
-    <!-- CHAT -->
-    <div id="chat-screen">
-        <div class="header">
-            <span id="chat-title">🌍 Globale</span>
-            <div>
-                <button class="mode-btn active" id="btn-global" onclick="setMode('global')">Globale</button>
-                <button class="mode-btn" id="btn-private" onclick="setMode('private')">Privata</button>
+        <!-- Schermata della Chat -->
+        <div id="chat-screen">
+            <div id="chat-header">
+                <span>Stanza Globale</span>
+                <span id="user-display"></span>
             </div>
-        </div>
-
-        <div id="private-tools">
-            <input type="text" id="target-user" placeholder="Con chi vuoi parlare in privato?">
-        </div>
-
-        <div id="messages"></div>
-
-        <div class="input-area">
-            <input type="text" id="message-input" placeholder="Scrivi un messaggio..." onkeypress="if(event.key === 'Enter') invia()">
-            <button onclick="invia()">Invia</button>
+            <div id="messages-area"></div>
+            <div id="input-area">
+                <input type="text" id="message-input" placeholder="Scrivi un messaggio..." autocomplete="off">
+                <button id="send-btn">Invia</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // PREFISSO UNIVOCO: Cambia questa stringa per creare la "tua" stanza isolata dal resto del mondo
-        const APP_PREFIX = "MIA_CHAT_SEGRETA_123/"; 
-        
-        let client = null;
-        let mioUsername = "";
-        let modalita = "global"; // 'global' o 'private'
+        let currentUser = "";
 
-        function connetti() {
-            mioUsername = document.getElementById("username").value.trim();
-            if (!mioUsername) return alert("Inserisci un username!");
+        // Elementi DOM
+        const loginScreen = document.getElementById('login-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const usernameInput = document.getElementById('username-input');
+        const loginBtn = document.getElementById('login-btn');
+        const userDisplay = document.getElementById('user-display');
+        const messagesArea = document.getElementById('messages-area');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
 
-            document.getElementById("status").innerText = "Connessione in corso...";
+        // Accedi alla chat
+        loginBtn.addEventListener('click', login);
+        usernameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') login(); });
 
-            // Ci connettiamo a un server pubblico gratuito (HiveMQ)
-            client = mqtt.connect("wss://broker.hivemq.com:8000/mqtt");
-
-            client.on("connect", () => {
-                // Quando siamo connessi, ci iscriviamo a due canali:
-                // 1. Il canale globale
-                client.subscribe(APP_PREFIX + "globale");
-                // 2. Il nostro canale privato personale (per ricevere messaggi diretti a noi)
-                client.subscribe(APP_PREFIX + "privato/" + mioUsername);
-
-                // Mostra la chat
-                document.getElementById("login-screen").style.display = "none";
-                document.getElementById("chat-screen").style.display = "flex";
-            });
-
-            // Cosa succede quando riceviamo un messaggio
-            client.on("message", (topic, payload) => {
-                const messaggio = JSON.parse(payload.toString());
-                
-                // Mostra il messaggio solo se stiamo guardando la chat giusta
-                const isGlobalTopic = topic.endsWith("globale");
-                const isMyPrivateTopic = topic.endsWith("privato/" + mioUsername);
-
-                if (modalita === "global" && isGlobalTopic) {
-                    stampaMessaggio(messaggio.mittente, messaggio.testo);
-                } else if (modalita === "private") {
-                    // Se siamo in chat privata, mostriamo i messaggi ricevuti dal nostro target
-                    const target = document.getElementById("target-user").value.trim();
-                    if (isMyPrivateTopic && messaggio.mittente === target) {
-                        stampaMessaggio(messaggio.mittente, messaggio.testo);
-                    }
-                }
-            });
-        }
-
-        function setMode(mode) {
-            modalita = mode;
-            document.getElementById("messages").innerHTML = ""; // Pulisce la chat
-            
-            if (mode === 'global') {
-                document.getElementById("chat-title").innerText = "🌍 Globale";
-                document.getElementById("btn-global").classList.add("active");
-                document.getElementById("btn-private").classList.remove("active");
-                document.getElementById("private-tools").style.display = "none";
-            } else {
-                document.getElementById("chat-title").innerText = "💬 Privata";
-                document.getElementById("btn-global").classList.remove("active");
-                document.getElementById("btn-private").classList.add("active");
-                document.getElementById("private-tools").style.display = "flex";
+        function login() {
+            const user = usernameInput.value.trim();
+            if (user) {
+                currentUser = user;
+                userDisplay.textContent = `@${currentUser}`;
+                loginScreen.style.display = 'none';
+                chatScreen.style.display = 'flex';
+                loadMessages();
+                messagesArea.scrollTop = messagesArea.scrollHeight;
             }
         }
 
-        function invia() {
-            const testo = document.getElementById("message-input").value.trim();
-            if (!testo || !client) return;
+        // Carica e renderizza i messaggi dal localStorage
+        function loadMessages() {
+            messagesArea.innerHTML = "";
+            const messages = JSON.parse(localStorage.getItem('local_chat_messages')) || [];
+            
+            messages.forEach(msg => {
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('message');
+                
+                if (msg.sender === currentUser) {
+                    msgDiv.classList.add('sent');
+                } else {
+                    msgDiv.classList.add('received');
+                }
 
-            const pacchetto = {
-                mittente: mioUsername,
-                testo: testo
+                msgDiv.innerHTML = `<span class="username">${msg.sender}</span>${msg.text}`;
+                messagesArea.appendChild(msgDiv);
+            });
+        }
+
+        // Invia un nuovo messaggio
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text) return;
+
+            const messages = JSON.parse(localStorage.getItem('local_chat_messages')) || [];
+            const newMessage = {
+                sender: currentUser,
+                text: text,
+                timestamp: Date.now()
             };
 
-            if (modalita === "global") {
-                // Invia al canale globale
-                client.publish(APP_PREFIX + "globale", JSON.stringify(pacchetto));
-                stampaMessaggio(mioUsername, testo); // Mostralo a me stesso
-            } else {
-                const target = document.getElementById("target-user").value.trim();
-                if (!target) return alert("Inserisci il nome di chi vuoi contattare in alto!");
-                
-                // Invia al canale privato del destinatario
-                client.publish(APP_PREFIX + "privato/" + target, JSON.stringify(pacchetto));
-                stampaMessaggio(mioUsername, testo); // Mostralo a me stesso
+            messages.push(newMessage);
+            localStorage.setItem('local_chat_messages', JSON.stringify(messages));
+            
+            messageInput.value = "";
+            loadMessages();
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        // Ascolta i cambiamenti nel localStorage per aggiornare la chat in tempo reale tra le schede
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'local_chat_messages') {
+                loadMessages();
+                messagesArea.scrollTop = messagesArea.scrollHeight;
             }
-
-            document.getElementById("message-input").value = "";
-        }
-
-        function stampaMessaggio(mittente, testo) {
-            const box = document.getElementById("messages");
-            const div = document.createElement("div");
-            
-            const sonoIo = (mittente === mioUsername);
-            div.className = "msg " + (sonoIo ? "me" : "other");
-            
-            div.innerHTML = `<span class="msg-sender">${sonoIo ? 'Tu' : mittente}</span>${testo}`;
-            box.appendChild(div);
-            
-            // Scrolla in basso
-            box.scrollTop = box.scrollHeight;
-        }
+        });
     </script>
 </body>
 </html>
